@@ -1,9 +1,12 @@
 module Scheme.Parser
   ( readExpr
-  , parseExpr
   ) where
 
-import Control.Monad
+import Control.Monad (liftM)
+import Data.Char (toLower)
+import Data.Complex (Complex(..))
+import Data.Ratio (Rational, (%))
+import Numeric (readHex, readOct)
 import System.Environment
 import Text.ParserCombinators.Parsec hiding (spaces)
 
@@ -37,11 +40,11 @@ readExpr input =
 --
 parseExpr :: Parser LispVal
 parseExpr =
-  parseAtom <|> parseString <|> try parseChar <|> try parseComplex <|>
-  try parseFloat <|>
-  try parseRatio <|>
-  try parseNumber <|>
-  try parseBool
+  parseAtom <|> parseString <|> parseNumber <|> parseQuoted <|> do
+    char '('
+    x <- try parseList <|> parseDottedList
+    char ')'
+    return x
 
 parseAtom :: Parser LispVal
 parseAtom = do
@@ -133,6 +136,21 @@ parseBool = do
     case c of
       't' -> Bool True
       'f' -> Bool False
+
+parseList :: Parser LispVal
+parseList = liftM List $ sepBy parseExpr spaces
+
+parseDottedList :: Parser LispVal
+parseDottedList = do
+  head <- endBy parseExpr spaces
+  tail <- char '.' >> spaces >> parseExpr
+  return $ DottedList head tail
+
+parseQuoted :: Parser LispVal
+parseQuoted = do
+  char '\''
+  x <- parseExpr
+  return $ List [Atom "quote", x]
 
 --
 -- Helpers
