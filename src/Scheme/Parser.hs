@@ -3,6 +3,7 @@ module Scheme.Parser
   ) where
 
 import Control.Monad (liftM)
+import Data.Array
 import Data.Char (toLower)
 import Data.Complex (Complex(..))
 import Data.Ratio (Rational, (%))
@@ -22,12 +23,8 @@ data LispVal
   | String String
   | Char Char
   | Bool Bool
+  | Vector (Array Int LispVal)
   deriving (Show)
-
-main :: IO ()
-main = do
-  args <- getArgs
-  putStrLn (readExpr (args !! 0))
 
 readExpr :: String -> String
 readExpr input =
@@ -40,17 +37,34 @@ readExpr input =
 --
 parseExpr :: Parser LispVal
 parseExpr =
-  parseAtom <|> parseString <|> parseNumber <|> parseQuoted <|> do
+  parseAtom <|> parseString <|> parseNumber <|> parseQuoted <|> parseQuasiQuoted <|> do
     char '('
     x <- try parseList <|> parseDottedList
     char ')'
     return x
+
+parseQuasiQuoted :: Parser LispVal
+parseQuasiQuoted = do
+  char '`'
+  x <- parseExpr
+  return $ List [Atom "quasiquote", x]
+
+parseUnQuote :: Parser LispVal
+parseUnQuote = do
+  char ','
+  x <- parseExpr
+  return $ List [Atom "unquote", x]
 
 parseAtom :: Parser LispVal
 parseAtom = do
   first <- letter <|> symbol
   rest <- many (letter <|> digit <|> symbol)
   (return . Atom) (first : rest)
+
+parseVector :: Parser LispVal
+parseVector = do
+  arrayValues <- sepBy parseExpr spaces
+  return $ Vector (listArray (0, (length arrayValues - 1)) arrayValues)
 
 parseNumber :: Parser LispVal
 parseNumber = parsePlainNumber <|> parseRadixNumber
