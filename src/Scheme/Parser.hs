@@ -8,23 +8,9 @@ import Data.Char (toLower)
 import Data.Complex (Complex(..))
 import Data.Ratio (Rational, (%))
 import Numeric (readHex, readOct)
+import Scheme.Data
 import System.Environment
 import Text.ParserCombinators.Parsec hiding (spaces)
-
-data LispVal
-  = Atom String
-  | List [LispVal]
-  | DottedList [LispVal]
-               LispVal
-  | Number Integer
-  | Ratio Rational
-  | Float Double
-  | Complex (Complex Double)
-  | String String
-  | Char Char
-  | Bool Bool
-  | Vector (Array Int LispVal)
-  deriving (Show)
 
 readExpr :: String -> String
 readExpr input =
