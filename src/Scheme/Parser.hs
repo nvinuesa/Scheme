@@ -16,7 +16,7 @@ readExpr :: String -> String
 readExpr input =
   case parse parseExpr "lisp" input of
     Left err -> "No match: " ++ show err
-    Right val -> "Found value: " ++ show val
+    Right val -> "Found " ++ show val
 
 --
 -- LispVal Parsers

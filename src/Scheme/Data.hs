@@ -19,7 +19,9 @@ data LispVal
   | Char Char
   | Bool Bool
   | Vector (Array Int LispVal)
-  deriving (Show)
+
+instance Show LispVal where
+  show = showVal
 
 showVal :: LispVal -> String
 showVal (String contents) = "\"" ++ contents ++ "\""
