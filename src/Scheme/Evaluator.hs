@@ -23,7 +23,32 @@ primitives =
   , ("mod", numericBinop mod)
   , ("quotient", numericBinop quot)
   , ("remainder", numericBinop rem)
+  , ("symbol?", unaryOp symbolTest)
+  , ("string?", unaryOp stringTest)
+  , ("number?", unaryOp numberTest)
+  , ("bool?", unaryOp boolTest)
+  , ("list?", unaryOp listTest)
   ]
+
+unaryOp :: (LispVal -> LispVal) -> [LispVal] -> LispVal
+unaryOp f [v] = f v
+
+symbolTest, stringTest, numberTest, boolTest :: LispVal -> LispVal
+symbolTest (Atom _) = Bool True
+symbolTest _ = Bool False
+
+stringTest (String _) = Bool True
+stringTest _ = Bool False
+
+numberTest (Number _) = Bool True
+numberTest _ = Bool False
+
+boolTest (Bool _) = Bool True
+boolTest _ = Bool False
+
+listTest (List _) = Bool True
+listTest (DottedList _ _) = Bool True
+listTest _ = Bool False
 
 numericBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> LispVal
 numericBinop op params = Number $ foldl1 op $ map unpackNum params
