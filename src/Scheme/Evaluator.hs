@@ -28,12 +28,15 @@ primitives =
   , ("number?", unaryOp numberTest)
   , ("bool?", unaryOp boolTest)
   , ("list?", unaryOp listTest)
+  , ("symbol->string", unaryOp symbol2string)
+  , ("string->symbol", unaryOp string2symbol)
   ]
 
 unaryOp :: (LispVal -> LispVal) -> [LispVal] -> LispVal
 unaryOp f [v] = f v
 
-symbolTest, stringTest, numberTest, boolTest :: LispVal -> LispVal
+symbolTest, stringTest, numberTest, boolTest, symbol2string, string2symbol ::
+     LispVal -> LispVal
 symbolTest (Atom _) = Bool True
 symbolTest _ = Bool False
 
@@ -50,15 +53,15 @@ listTest (List _) = Bool True
 listTest (DottedList _ _) = Bool True
 listTest _ = Bool False
 
+symbol2string (Atom s) = String s
+symbol2string _ = String ""
+
+string2symbol (String s) = Atom s
+string2symbol _ = Atom ""
+
 numericBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> LispVal
 numericBinop op params = Number $ foldl1 op $ map unpackNum params
 
 unpackNum :: LispVal -> Integer
 unpackNum (Number n) = n
-unpackNum (String n) =
-  let parsed = reads n :: [(Integer, String)]
-  in if null parsed
-       then 0
-       else fst $ parsed !! 0
-unpackNum (List [n]) = unpackNum n
 unpackNum _ = 0
