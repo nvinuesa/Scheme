@@ -3,6 +3,7 @@ module Scheme.Parser
   ) where
 
 import Control.Monad (liftM)
+import Control.Monad.Error
 import Data.Array
 import Data.Char (toLower)
 import Data.Complex (Complex(..))
@@ -12,11 +13,11 @@ import Scheme.Data
 import System.Environment
 import Text.ParserCombinators.Parsec hiding (spaces)
 
-readExpr :: String -> LispVal
+readExpr :: String -> ThrowsError LispVal
 readExpr input =
   case parse parseExpr "lisp" input of
-    Left err -> String $ "No match: " ++ show err
-    Right val -> val
+    Left err -> throwError $ Parser err
+    Right val -> return val
 
 --
 -- LispVal Parsers
