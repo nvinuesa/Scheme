@@ -20,6 +20,7 @@ eval (List [Atom "if", pred, conseq, alt]) = do
     _ -> throwError $ TypeMismatch "bool" pred
 eval (List (Atom func:args)) = mapM eval args >>= apply func
 eval badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
+eval (List ((Atom "cond"):alts)) = cond alts
 
 apply :: String -> [LispVal] -> ThrowsError LispVal
 apply func args =
@@ -50,6 +51,8 @@ primitives =
   , ("string>?", strBoolBinop (>))
   , ("string<=?", strBoolBinop (<=))
   , ("string>=?", strBoolBinop (>=))
+  , ("string-length", stringLen)
+  , ("string-ref", stringRef)
   , ("mod", numericBinop mod)
   , ("quotient", numericBinop quot)
   , ("remainder", numericBinop rem)
@@ -114,6 +117,21 @@ symbol2string _ = String ""
 string2symbol (String s) = Atom s
 string2symbol _ = Atom ""
 
+stringLen :: [LispVal] -> ThrowsError LispVal
+stringLen [(String s)] = Right $ Number $ fromIntegral $ length s
+stringLen [notString] = throwError $ TypeMismatch "string" notString
+stringLen badArgList = throwError $ NumArgs 1 badArgList
+
+stringRef :: [LispVal] -> ThrowsError LispVal
+stringRef [(String s), (Number k)]
+  | length s < k' + 1 = throwError $ Default "Out of bound error"
+  | otherwise = Right $ String $ [s !! k']
+  where
+    k' = fromIntegral k
+stringRef [(String s), notNum] = throwError $ TypeMismatch "number" notNum
+stringRef [notString, _] = throwError $ TypeMismatch "string" notString
+stringRef badArgList = throwError $ NumArgs 2 badArgList
+
 numericBinop ::
      (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
 numericBinop op [] = throwError $ NumArgs 2 []
@@ -167,13 +185,7 @@ eqv [(String arg1), (String arg2)] = return $ Bool $ arg1 == arg2
 eqv [(Atom arg1), (Atom arg2)] = return $ Bool $ arg1 == arg2
 eqv [(DottedList xs x), (DottedList ys y)] =
   eqv [List $ xs ++ [x], List $ ys ++ [y]]
-eqv [(List arg1), (List arg2)] =
-  return $ Bool $ (length arg1 == length arg2) && (all eqvPair $ zip arg1 arg2)
-  where
-    eqvPair (x1, x2) =
-      case eqv [x1, x2] of
-        Left err -> False
-        Right (Bool val) -> val
+eqv [l1@(List arg1), l2@(List arg2)] = eqvList eqv [l1, l2]
 eqv [_, _] = return $ Bool False
 eqv badArgList = throwError $ NumArgs 2 badArgList
 
@@ -189,6 +201,9 @@ unpackEquals arg1 arg2 (AnyUnpacker unpacker) =
      `catchError` (const $ return False)
 
 equal :: [LispVal] -> ThrowsError LispVal
+equal [l1@(List arg1), l2@(List arg2)] = eqvList equal [l1, l2]
+equal [(DottedList xs x), (DottedList ys y)] =
+  equal [List $ xs ++ [x], List $ ys ++ [y]]
 equal [arg1, arg2] = do
   primitiveEquals <-
     liftM or $
@@ -202,3 +217,25 @@ equal [arg1, arg2] = do
      let (Bool x) = eqvEquals
      in x)
 equal badArgList = throwError $ NumArgs 2 badArgList
+
+eqvList ::
+     ([LispVal] -> ThrowsError LispVal) -> [LispVal] -> ThrowsError LispVal
+eqvList eqvFunc [(List arg1), (List arg2)] =
+  return $ Bool $ (length arg1 == length arg2) && (all eqvPair $ zip arg1 arg2)
+  where
+    eqvPair (x1, x2) =
+      case eqvFunc [x1, x2] of
+        Left err -> False
+        Right (Bool val) -> val
+
+cond :: [LispVal] -> ThrowsError LispVal
+cond ((List (Atom "else":value:[])):[]) = eval value
+cond ((List (condition:value:[])):alts) = do
+  result <- eval condition
+  boolResult <- unpackBool result
+  if boolResult
+    then eval value
+    else cond alts
+cond ((List a):_) = throwError $ NumArgs 2 a
+cond (a:_) = throwError $ NumArgs 2 [a]
+cond _ = throwError $ Default "Not viable alternative in cond"
